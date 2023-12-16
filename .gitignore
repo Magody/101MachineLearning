@@ -1,0 +1,9 @@
+**.ipynb_checkpoints
+**__pycache__
+**load_keys.sh
+output
+**.env
+**.env.json
+.vscode
+000_data/**.csv
+000_data/**.parquet
