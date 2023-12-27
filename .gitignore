@@ -7,3 +7,4 @@ output
 .vscode
 000_data/**.csv
 000_data/**.parquet
+**temp
