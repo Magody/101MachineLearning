@@ -1,0 +1,34 @@
+aiohttp==3.9.5
+aiohttp-retry==2.8.3
+aiosignal==1.3.1
+annotated-types==0.7.0
+anyio==4.4.0
+attrs==23.2.0
+blinker @ file:///croot/blinker_1696539051175/work
+certifi==2024.6.2
+charset-normalizer==3.3.2
+click @ file:///croot/click_1698129812380/work
+distro==1.9.0
+Flask @ file:///croot/flask_1716545870149/work
+frozenlist==1.4.1
+h11==0.14.0
+httpcore==1.0.5
+httpx==0.27.0
+idna==3.7
+itsdangerous @ file:///croot/itsdangerous_1716533337253/work
+Jinja2 @ file:///croot/jinja2_1716993405101/work
+MarkupSafe @ file:///croot/markupsafe_1704205993651/work
+multidict==6.0.5
+openai==1.35.3
+pydantic==2.7.4
+pydantic_core==2.18.4
+PyJWT==2.8.0
+python-dotenv==1.0.1
+requests==2.32.3
+sniffio==1.3.1
+tqdm==4.66.4
+twilio==9.2.1
+typing_extensions==4.12.2
+urllib3==2.2.2
+Werkzeug @ file:///croot/werkzeug_1716533313107/work
+yarl==1.9.4

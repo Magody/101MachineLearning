@@ -1,0 +1,184 @@
+### Documentación Técnica (Docstrings)
+
+#### `remove_urls`
+```python
+def remove_urls(text):
+    """
+    Elimina las URL de un texto.
+
+    Chain of Thought:
+    1. La función `remove_urls` toma un parámetro, `text`, que es una cadena de texto.
+    2. La función utiliza un patrón de expresiones regulares para identificar y eliminar las URL del texto.
+    3. Las URL pueden ser de diferentes formas, como `https://www.example.com` o `www.example.com`, por lo que el patrón de expresiones regulares considera ambos casos.
+
+    Args:
+        text (str): El texto del que se eliminarán las URL.
+
+    Returns:
+        str: El texto con las URL eliminadas.
+
+    Ejemplo:
+        >>> remove_urls("Este es un texto con una URL: https://www.example.com")
+        'Este es un texto con una URL: '
+    """
+
+    url_pattern = re.compile(r'https?://\S+|www\.\S+')
+    return url_pattern.sub(r'', text)
+```
+
+#### `remove_emoji`
+```python
+def remove_emoji(text):
+    """
+    Elimina los emojis de un texto.
+
+    Chain of Thought:
+    1. La función `remove_emoji` toma un parámetro, `text`, que es una cadena de texto.
+    2. La función utiliza un patrón de expresiones regulares para identificar y eliminar los emojis del texto.
+    3. Los emojis pueden ser de diferentes formas, como `😀`, `❤️` o `👍`, por lo que el patrón de expresiones regulares considera diferentes rangos de códigos Unicode.
+
+    Args:
+        text (str): El texto del que se eliminarán los emojis.
+
+    Returns:
+        str: El texto con los emojis eliminados.
+
+    Ejemplo:
+        >>> remove_emoji("Este es un texto con un emoji: 😀")
+        'Este es un texto con un emoji: '
+    """
+
+    emoji_pattern = re.compile("["
+                           u"😀-🙏"  # emoticons
+                           u"🌀-🗿"  # symbols & pictographs
+                           u"🚀-🛿"  # transport & map symbols
+                           u"🇠-🇿"  # flags (iOS)
+                           u"✂-➰"
+                           u"Ⓜ-🉑"
+                           "]+", flags=re.UNICODE)
+    return emoji_pattern.sub(r'', text)
+```
+
+#### `remove_stopwords`
+```python
+def remove_stopwords(text, stopwords):
+    """
+    Elimina las stopwords de un texto.
+
+    Chain of Thought:
+    1. La función `remove_stopwords` toma dos parámetros: `text`, que es una cadena de texto, y `stopwords`, que es una lista de stopwords.
+    2. La función filtra el texto para eliminar cualquier palabra que esté en la lista de stopwords.
+    3. Las stopwords son palabras comunes que no aportan mucho significado al texto, como "el", "la", "de", "a".
+
+    Args:
+        text (str): El texto del que se eliminarán las stopwords.
+        stopwords (list): Una lista de stopwords.
+
+    Returns:
+        list: Una lista de palabras en el texto que no son stopwords.
+
+    Ejemplo:
+        >>> remove_stopwords("Este es un texto con stopwords", ["el", "la", "de"])
+        ['Este', 'es', 'un', 'texto', 'con', 'stopwords']
+    """
+
+    output= [i for i in text if i not in stopwords]
+    return output
+```
+
+#### `stemming_es`
+```python
+def stemming_es(token):
+    """
+    Realiza stemming de una palabra en español.
+
+    Chain of Thought:
+    1. La función `stemming_es` toma un parámetro, `token`, que es una palabra en español.
+    2. La función utiliza el stemmer de Snowball para el idioma español para reducir la palabra a su raíz.
+    3. El stemming es el proceso de eliminar sufijos y prefijos de una palabra para obtener su forma básica.
+
+    Args:
+        token (str): La palabra en español a la que se le aplicará el stemming.
+
+    Returns:
+        str: La palabra en español con stemming aplicado.
+
+    Ejemplo:
+        >>> stemming_es("corriendo")
+        'corr'
+    """
+
+    es_stemmer = SnowballStemmer('spanish')
+    return es_stemmer.stem(token)
+```
+
+#### `stemming_eng`
+```python
+def stemming_eng(text):
+    """
+    Realiza stemming de un texto en inglés.
+
+    Chain of Thought:
+    1. La función `stemming_eng` toma un parámetro, `text`, que es una lista de palabras en inglés.
+    2. La función utiliza el stemmer de Porter para el idioma inglés para reducir cada palabra a su raíz.
+    3. El stemming es el proceso de eliminar sufijos y prefijos de una palabra para obtener su forma básica.
+
+    Args:
+        text (list): Una lista de palabras en inglés a las que se les aplicará el stemming.
+
+    Returns:
+        list: Una lista de palabras en inglés con stemming aplicado.
+
+    Ejemplo:
+        >>> stemming_eng(['running', 'quickly', 'read'])
+        ['run', 'quick', 'read']
+    """
+
+    eng_stemmer = PorterStemmer()
+    stem_text = [eng_stemmer.stem(word) for word in text]
+    return stem_text
+```
+
+#### `lemmatizer_eng`
+```python
+def lemmatizer_eng(text, wordnet_lemmatizer):
+    """
+    Realiza lematización de un texto en inglés.
+
+    Chain of Thought:
+    1. La función `lemmatizer_eng` toma dos parámetros: `text`, que es una lista de palabras en inglés, y `wordnet_lemmatizer`, que es una instancia del lematizador de WordNet.
+    2. La función utiliza el lematizador de WordNet para reducir cada palabra a su forma base, teniendo en cuenta el contexto.
+    3. La lematización es el proceso de reducir una palabra a su forma base, teniendo en cuenta su significado y parte del discurso.
+
+    Args:
+        text (list): Una lista de palabras en inglés a las que se les aplicará el lematizador.
+        wordnet_lemmatizer (WordNetLemmatizer): Una instancia del lematizador de WordNet.
+
+    Returns:
+        list: Una lista de palabras en inglés con lematización aplicada.
+
+    Ejemplo:
+        >>> lemmatizer_eng(['running', 'quickly', 'read'], WordNetLemmatizer())
+        ['run', 'quickly', 'read']
+    """
+
+    lemm_text = [wordnet_lemmatizer.lemmatize(word) for word in text]
+    return lemm_text
+```
+
+### Documentación para Usuarios No Técnicos
+
+**¡Procesamiento de Texto Simplificado!**
+
+Este código te ayuda a limpiar y transformar textos para hacerlos más útiles para el análisis.
+
+**¿Qué hace?**
+
+1. **Elimina URL y emojis**: Elimina enlaces y caritas sonrientes para enfocarse en el contenido real.
+2. **Elimina Stopwords (español)**: Quita palabras comunes como "la", "de", "que" que no agregan mucha información.
+3. **Stemming (español e inglés)**: Reduce las palabras a su raíz, como "corriendo" a "corr".
+4. **Lematización (inglés)**: Identifica la forma base de las palabras según su contexto, como "running" a "run".
+
+**¡Resultado!**
+
+Un texto más limpio y fácil de analizar, listo para descubrir patrones y obtener información valiosa. 🧐

@@ -1,0 +1,19 @@
+Vamos a generar el contenido para el blog. Vamos poco a poco. Genera ahora la introducción, todo genera 
+solo el código wordpress sin preambulo o introducción
+****
+Te pediré que escribamos a detalle el blog, pero antes hay que planificar la tabla de contenidos en wordpress
+Genera una tabla de contenidos (código wordpress)
+con enlaces a los artículos que escribiras por cada tema.
+
+****
+Ahora continuemos con los temas / secciones. Empieza con el contenido del blog de wordpress para:
+los 3 siguientes temas EN DETALLE
+dame solo el código wordpress sin preambulo o introducción
+****
+Continua a DETALLE con los 3 temas siguientes, si es que hay
+dame solo el código wordpress sin preambulo o introducción
+****
+Continua a DETALLE con los últimos temas siguientes, si es que hay
+dame solo el código wordpress sin preambulo o introducción
+****
+Genera una conclusión y llamada a la acción

@@ -1,0 +1,9 @@
+dump.py
+.vscode
+**__pycache__
+experiments
+notes
+reports
+.env.json
+*.out
+mongo_volume/*

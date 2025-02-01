@@ -1,0 +1,44 @@
+plataforma;proveedor;modal;context_window;output_maximo;modelo_nombre;modelo_version;modelo_id;precio_input;precio_output;medicion_precio_input;medicion_precio_output;region
+AWS-BEDROCK;Amazon;text;4096;;Titan Text G1 - Express;1.x;amazon.titan-text-express-v1;0.0008;0.0016;1k;1k;us-east-1
+AWS-BEDROCK;Amazon;text;4096;;Titan Text G1 - Lite;1.x;amazon.titan-text-lite-v1;0.0003;0.0004;1k;1k;us-east-1
+AWS-BEDROCK;Amazon;text;4096;;Titan Embeddings G1 - Text;1.x;amazon.titan-embed-text-v1;0.0001;N/A;1k;N/A;us-east-1
+AWS-BEDROCK;Amazon;embeddings-multimodal;;;Titan Multimodal Embeddings G1	;1.x;amazon.titan-embed-image-v1;0.0008;0.00006;1k;IMG;us-east-1
+AWS-BEDROCK;Amazon;image;;;Titan Image Generator G1;1.x;amazon.titan-image-generator-v1;;0.008;;512X512;us-east-1
+AWS-BEDROCK;Amazon;image;;;Titan Image Generator G1;1.x;amazon.titan-image-generator-v1;;0.01;;1024X1024;us-east-1
+AWS-BEDROCK;Anthropic;text;100000;;Claude;2.0;anthropic.claude-v2;0.00800;0.02400;1k;1k;us-east-1
+AWS-BEDROCK;Anthropic;text;100000;;Claude;2.1;anthropic.claude-v2:1;0.00800;0.02400;1k;1k;us-east-1
+AWS-BEDROCK;Anthropic;text;100000;;Claude 3 Sonnet;1.0;anthropic.claude-3-sonnet-20240229-v1:0;0.00300;0.01500;1k;1k;us-east-1
+AWS-BEDROCK;Anthropic;text;100000;;Claude 3 Haiku;1.0;anthropic.claude-3-haiku-20240307-v1:0;0.00025;0.00125;1k;1k;us-east-1
+AWS-BEDROCK;Anthropic;text;4096;;Claude Instant;1.x;anthropic.claude-instant-v1;0.00080;0.00240;1k;1k;us-east-1
+AWS-BEDROCK;AI21 Labs;text;4096;;Jurassic-2 Mid;1.x;ai21.j2-mid-v1;0.0125;0.0125;1k;1k;us-east-1
+AWS-BEDROCK;AI21 Labs;text;4096;;Jurassic-2 Ultra;1.x;ai21.j2-ultra-v1;0.0188;0.0188;1k;1k;us-east-1
+AWS-BEDROCK;Cohere;text;4096;;Command;14.x;cohere.command-text-v14;0.0015;0.0020;1k;1k;us-east-1
+AWS-BEDROCK;Cohere;text;4096;;Command Light;15.x;cohere.command-light-text-v14;0.0003;$0.0006;1k;1k;us-east-1
+AWS-BEDROCK;Cohere;embeddings;;;Embed English;3.x;cohere.embed-english-v3;0.0001;N/A;1k;N/A;us-east-1
+AWS-BEDROCK;Cohere;embeddings;;;Embed Multilingual;3.x;cohere.embed-multilingual-v3;0.0001;N/A;1k;N/A;us-east-1
+AWS-BEDROCK;Meta;text;;;Llama 2 Chat 13B;1.x;meta.llama2-13b-chat-v1;0.00075;0.00100;1k;1k;us-east-1
+AWS-BEDROCK;Meta;text;;;Llama 2 Chat 70B;1.x;meta.llama2-70b-chat-v1;0.00195;0.00256;1k;1k;us-east-1
+AWS-BEDROCK;Mistral AI;text;;;Mistral 7B Instruct;0.x;mistral.mistral-7b-instruct-v0:2;0.00015;0.0002;1k;1k;us-east-1
+AWS-BEDROCK;Mistral AI;text;;;Mixtral 8X7B Instruct;0.x;mistral.mixtral-8x7b-instruct-v0:1;0.00045;0.0007;1k;1k;us-east-1
+AWS-BEDROCK;Stability AI;image;;;Stable Diffusion XL;0.x;stability.stable-diffusion-xl-v0;;0.018;;512x512;us-east-1
+AWS-BEDROCK;Stability AI;image;;;Stable Diffusion XL;1.x;stability.stable-diffusion-xl-v1;;0.04;;1024x1024;us-east-1
+OPENAI;OpenAI;text;128000;4096;gpt-4-0125-preview;4.0125;gpt-4-0125-preview;0.01;0.03;1k;1k;
+OPENAI;OpenAI;text;128000;4096;gpt-4-1106-preview;4.1106;gpt-4-1106-preview;0.01;0.03;1k;1k;
+OPENAI;OpenAI;multimodal;128000;4096;gpt-4-1106-vision-preview;4.1106;gpt-4-1106-vision-preview;0.01;0.03;1k;1k;
+OPENAI;OpenAI;text;4096;;GPT 4;4;gpt-4;0.03;0.06;1k;1k;
+OPENAI;OpenAI;text;32000;;GPT 4 32k;4;gpt-4-32k;0.06;0.12;1k;1k;
+OPENAI;OpenAI;text;16000;;GPT 3.5 Turbo 16k;3.5.0125;gpt-3.5-turbo-0125;0.0005;0.0015;1k;1k;
+OPENAI;OpenAI;text;4096;;GPT 3.5 Turbo Instruct;3.5;gpt-3.5-turbo-instruct;0.0015;0.002;1k;1k;
+OPENAI;OpenAI;assistant;;;Code interpreter;;;0.03;;session;;
+OPENAI;OpenAI;assistant;;;Retrieval;;;0.20;;GB/assistant/day;;
+OPENAI;OpenAI;text;4096;;GPT 3.5 Turbo;3.5;gpt-3.5-turbo;0.003;0.006;1k;1k;
+OPENAI;OpenAI;text;4096;;Davinci 002;002;davinci-002;0.012;0.012;1k;1k;
+OPENAI;OpenAI;text;4096;;Babbage 002;002;babbage-002;0.0016;0.0016;1k;1k;
+OPENAI;OpenAI;embeddings;;;text-embedding-3-small;3;text-embedding-3-small;0.00002;N/A;1k;N/A;
+OPENAI;OpenAI;embeddings;;;text-embedding-3-large;3;text-embedding-3-large;0.00013;N/A;1k;N/A;
+OPENAI;OpenAI;embeddings;;;ada v2;2;ada v2;0.00010;N/A;1k;N/A;
+OPENAI;OpenAI;image;;;DALL·E 3	Standard;3;;;0.040;;1024×1024;
+OPENAI;OpenAI;image;;;DALL·E 3	HD;3;;;0.080;;1024×1024;
+OPENAI;OpenAI;audio;;;Whisper;;;0.006;;minute;;
+OPENAI;OpenAI;audio;;;TTS;;;0.015;;1k-char;;
+OPENAI;OpenAI;audio;;;TTS HD;;;0.030;;1k-char;;

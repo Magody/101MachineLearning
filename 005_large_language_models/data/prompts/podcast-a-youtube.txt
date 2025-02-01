@@ -1,0 +1,9 @@
+A continuación tendras el texto de un podcast dividido en secciones.
+Expande un guión para un video de youtube en donde se converse de todos los temas,
+debe ser de mínimo 10 minutos por lo que tendrás que usar mucho texto.
+No hagas preguntas, todo debe estar conectado y ser secuencial. Tu responde cualquier pregunta
+que pueda aparecer respecto a los temas conversados
+Podcast:
+'''
+{extra_data}
+'''

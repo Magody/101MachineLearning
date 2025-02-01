@@ -1,0 +1,6 @@
+.vscode
+reference
+**__pycache__
+**.out
+dump.**
+.env.json

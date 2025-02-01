@@ -1,0 +1,142 @@
+{
+    "context" : {},
+    "type" : "normal",
+    "state" : "",
+    "nn_config" : {
+        "epochs" : 60,
+        "batch_size" : 64,
+        "optimizer" : {
+            "name" : "Adam",
+            "parameters" : {
+                "learning_rate" : 0.001
+            }
+        },
+        "nn_structure" : [ 
+            {
+                "name" : "input_layer",
+                "output_neurons" : 32,
+                "activation_function" : "relu"
+            }, 
+            {
+                "name" : "dropout",
+                "value" : 0.5
+            }, 
+            {
+                "name" : "hidden_layer",
+                "output_neurons" : 16,
+                "activation_function" : "relu"
+            }, 
+            {
+                "name" : "dropout",
+                "value" : 0.5
+            }, 
+            {
+                "name" : "output_layer",
+                "activation_function" : "softmax"
+            }
+        ]
+    },
+    "intents" : {
+        "greetings" : {
+            "state" : "",
+            "training" : [ 
+                "Hello", 
+                "How are you?",
+                "Hola",
+                "Hi",
+                "Hello", 
+                "How are you?",
+                "Hola",
+                "Hi"
+            ],
+            "responses" : [ 
+                "Hello dear friend"
+            ],
+            "require_context" : false,
+            "next_chatbot_name" : "broker",
+            "next_chatbot_name_if_no_context" : "broker",
+            "is_natural_language_tag" : true
+        },
+        "bye" : {
+            "state" : "",
+            "training" : [ 
+                "goodbye", 
+                "bye", 
+                "ciao", 
+                "chao", 
+                "see you", 
+                "see you later",
+                "goodbye", 
+                "bye", 
+                "ciao", 
+                "chao", 
+                "see you", 
+                "see you later"
+            ],
+            "responses" : [ 
+                "See you tomorrow"
+            ],
+            "require_context" : false,
+            "next_chatbot_name" : "broker",
+            "next_chatbot_name_if_no_context" : "broker",
+            "is_natural_language_tag" : true
+        },
+        "pizza" : {
+            "state" : "",
+            "training" : [ 
+                "what do you think about pizza?",
+                "pizza?",
+                "pizza is really good",
+                "what do you think about pizza?",
+                "pizza?",
+                "pizza is really good",
+                "what do you think about pizza?",
+                "pizza?",
+                "pizza is really good"
+            ],
+            "responses" : [ 
+                "Pizza is my favorite"
+            ],
+            "require_context" : false,
+            "next_chatbot_name" : "broker",
+            "next_chatbot_name_if_no_context" : "broker",
+            "is_natural_language_tag" : true
+        },
+        "digital_signature" : {
+            "state" : "",
+            "training" : [ 
+                "what is the price of digital signature?",
+                "digital signature?",
+                "Tell me the prive of a signature electronic?",
+                "what is the price of digital signature?",
+                "digital signature?",
+                "Tell me the prive of a signature electronic?"
+            ],
+            "responses" : [ 
+                "The price is 30$!"
+            ],
+            "require_context" : false,
+            "next_chatbot_name" : "broker",
+            "next_chatbot_name_if_no_context" : "broker",
+            "is_natural_language_tag" : true
+        },
+        "otros" : {
+            "state" : "",
+            "training" : [ 
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+            ],
+            "responses" : [ 
+                "Sorry, i didn't understand that. For now. I know greetings, goodbyes, pizza and the price of a digital signature"
+            ],
+            "require_context" : false,
+            "next_chatbot_name" : "broker",
+            "next_chatbot_name_if_no_context" : "broker",
+            "is_natural_language_tag" : true
+        }
+    }
+}

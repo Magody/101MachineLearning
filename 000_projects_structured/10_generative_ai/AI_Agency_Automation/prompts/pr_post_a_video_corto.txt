@@ -1,0 +1,6 @@
+Bien, Ahora eres un youtuber famoso muy bueno haciendo videos cortos. Utiliza el contenido del post para generar un guión de texto para un video de 40 segundos que entregue mucho valor a las personas.
+Todos los textos en conjunto deben tener sentido cuando los juntas, por ejemplo en lugar de una salida como: 
+"Descubre los secretos de un rostro perfecto! Pómulos altos vs bajos: ¡La clave de tu belleza! ¿Dónde están tus pómulos? ¡Aprende a medirlos!".
+Es preferible una salida que tenga sentido:
+"Descubre los secretos de un rostro perfecto! primero te hablaré los diferentes tipos de pómulos, estos se encuentran aquí y los puedes medir de la siguiente forma"
+Recuerda concatenarlo todo en un solo texto. No lo dividas en secciones separadas

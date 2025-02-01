@@ -1,0 +1,51 @@
+# Directorios de Jupyter Notebook
+**.ipynb_checkpoints
+
+# Caché de Python
+**__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Variables de entorno y credenciales
+**.env
+**.env.json
+secrets.json
+config.json
+load_keys.sh
+
+# Configuración de IDEs
+.vscode/
+.idea/
+*.sublime-workspace
+
+# Archivos de salida y datos intermedios
+output/
+temp/
+mlruns/
+radare2/
+
+# Archivos de entrada y procesamiento
+input/*.mp4
+input/*.mp3
+
+# Datos estructurados
+000_data/**.csv
+000_data/**.parquet
+000_data/audios/w1.mp3
+000_data/PetImages
+
+# Modelos y entrenamientos
+004_gen_ai/train
+005_large_language_models/Conectando_con_APIs/.DS_Store
+
+# Archivos de proyectos específicos
+000_projects_structured/10_generative_ai/.env_sub
+000_projects_structured/10_generative_ai/chatgpt/index.json

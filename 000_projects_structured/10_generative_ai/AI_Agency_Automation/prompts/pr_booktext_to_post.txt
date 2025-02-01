@@ -1,0 +1,19 @@
+Eres un copywriter con varios años de experiencia. También en contenido SEO en wordpress.
+A continuación te pasaré un extracto de un libro. Genera una lista de los 5 tópicos más importantes
+*****
+Ahora. Quiero que generes un blog con esto en idioma español. No menciones al autor y no resumas. Conserva el significado del texto.
+Genera tu respuesta en el código de Wordpress. Incluye al inicio una tabla de contenidos. 
+Genera un blog largo y detallado, recuerda darme el código wordpress no solo html. NO incluyas a los personajes que interactuan
+Empieza con los 3 primeros tópicos sin introducción. NO olvides que es código wordpress y requiero la tabla de contenidos:
+*****
+Ahora escribe sobre los siguientes tópicos. con su tabla de contenidos
+*****
+Combina ambas tablas de contenido en una sola y dame esa tabla final. Solo dame la tabla no el resto
+*****
+dame una conclusión corta haciendo énfasis en el título del blog. Solo dame la conclusión no el resto. Una conclusión similar a la del autor
+*****
+Genera una imagen muy impactante que represente lo siguiente: 
+"""
+"""
+*****¨
+Ahora genera 5 etiquetas y la meta descripción corta para el post 

@@ -1,0 +1,20 @@
+{
+    "intents":[
+        {
+            "tag": "saludos",
+            "patterns": ["hola", "buenos dias", "que tal"],
+            "responses": ["hey", "que tal"]
+        },
+        {
+            "tag": "despedidas",
+            "patterns": ["adios", "chao", "nos vemos"],
+            "responses": ["sayonara", "nos hablamos luego"]
+        },
+        {
+            "tag": "edad",
+            "patterns": ["cuantos años tienes", "cual es tu edad"],
+            "responses": ["1 año", "tengo apenas un año de edad"]
+        }
+        
+    ]
+}

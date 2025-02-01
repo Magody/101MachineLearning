@@ -1,0 +1,1257 @@
+# Databricks notebook source
+# DBTITLE 1,Librerías
+from pyspark.ml import Pipeline
+from pyspark.ml.feature import StringIndexer, OneHotEncoder, VectorAssembler
+from pyspark.sql.functions import col, when
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Data Engineering 
+
+# COMMAND ----------
+
+def filter_by_edad(spark_mdt):
+    "Transformation used to filter by age"
+    return spark_mdt.filter((spark_mdt.EDAD <= 90) & (spark_mdt.EDAD >= 15))
+
+# COMMAND ----------
+
+def filter_by_numero_cargas_familiares(spark_mdt):
+    "Transformation used to filter by cargasfamiliares"
+    return spark_mdt.filter(spark_mdt.NUMEROCARGASFAMILIARES <= 6)
+
+# COMMAND ----------
+
+def transform_situacion_laboral(spark_mdt):
+    "Transformation used to agg some situacion_laboral categories"
+    return spark_mdt.withColumn(
+        "SITUACIONLABORAL",
+        when(spark_mdt.SITUACIONLABORAL == "PROFESIONAL INDEPENDIENTE", "INDEPENDIENTE")
+        .when(spark_mdt.SITUACIONLABORAL == "EMPLEADO E INDEPENDIENTE", "INDEPENDIENTE")
+        .when(spark_mdt.SITUACIONLABORAL.isNull(), None)
+        .otherwise(spark_mdt.SITUACIONLABORAL),
+    )
+
+# COMMAND ----------
+
+def transform_nivel_estudios(spark_mdt):
+    "Transformation usd to imposose nan values"
+    return spark_mdt.withColumn(
+        "NIVELESTUDIOS",
+        when(spark_mdt.NIVELESTUDIOS.isNull(), None).otherwise(spark_mdt.NIVELESTUDIOS),
+    )
+
+# COMMAND ----------
+
+def create_new_dummy(spark_mdt):
+    "Dummy variable creation"
+    return spark_mdt.withColumn(
+        "CLIENTE_NUEVO", when(col("MESESANTIGUEDAD") < 12, 1).otherwise(0)
+    )
+
+# COMMAND ----------
+
+# DBTITLE 1,Carga Monto Pasivos por Cliente
+# MAGIC %run ../../de/PY_Pasivos
+
+# COMMAND ----------
+
+# DBTITLE 1,Limpieza de datos
+def clean_features(spark_mdt, drop_na=True):
+    """
+    Helper func used to apply all data transformation
+    and data engineering part
+    """
+    spark_mdt = filter_by_edad(spark_mdt)
+    spark_mdt = filter_by_numero_cargas_familiares(spark_mdt)
+    spark_mdt = transform_situacion_laboral(spark_mdt)
+    spark_mdt = transform_nivel_estudios(spark_mdt)
+    spark_mdt = create_new_dummy(spark_mdt)
+
+    # Merge with Pasivos
+    spark_mdt = spark_mdt.join(last_month_date_agg, on=["Identificacion"], how="left")
+
+    if drop_na:
+        return spark_mdt.dropna()
+    else:
+        return spark_mdt
+
+# COMMAND ----------
+
+def get_sample_spark_mdt(spark_mdt, frac_sample: float = 1.0):
+    """
+    Helper function used to sample
+    dataset from label category
+    """
+    return spark_mdt.sampleBy(
+        "label", fractions={0: frac_sample, 1: frac_sample, 2: frac_sample}, seed=0
+    )
+
+# COMMAND ----------
+
+# DBTITLE 1,Transformación a PySpark
+def transform_features(
+    spark_mdt, drop_last: bool = False, frac_sample: float = 1.0, train: bool = True
+):
+    """
+    Func used to apply pyspark trasnformation ready
+    to be used by models and trasnformations
+    """
+
+    spark_mdt = spark_mdt.dropna()
+
+    if frac_sample < 1.0:
+        spark_mdt = get_sample_spark_mdt(spark_mdt, frac_sample)
+
+    # spark_mdt = clean_features(spark_mdt)
+    categorical_cols = [
+        item[0] for item in spark_mdt.dtypes if item[1].startswith("string")
+    ]
+    continuous_cols = list(set(spark_mdt.columns) - set(categorical_cols))
+    categorical_cols.remove("identificacion")
+    categorical_cols.remove("codigoCif")
+    if train:
+        continuous_cols.remove("label")
+
+    indexers = [
+        StringIndexer(inputCol=c, outputCol="{0}_indexed".format(c))
+        for c in categorical_cols
+    ]
+
+    encoders = [
+        OneHotEncoder(
+            inputCol=indexer.getOutputCol(),
+            outputCol="{0}_encoded".format(indexer.getOutputCol()),
+            dropLast=drop_last,
+        )
+        for indexer in indexers
+    ]
+
+    in_cols = [encoder.getOutputCol() for encoder in encoders] + continuous_cols
+    assembler = [VectorAssembler(inputCols=in_cols, outputCol="features")]
+
+    # Pipeline de creacion de features
+    pipeline = Pipeline(stages=indexers + encoders + assembler)
+
+    model = pipeline.fit(spark_mdt)
+    data = model.transform(spark_mdt)
+
+    if train:
+        return data.select(
+            col("identificacion"), col("codigoCif"), col("features"), col("label")
+        )
+    else:
+        return data.select(col("identificacion"), col("codigoCif"), col("features"))
+
+
+
+
+# Databricks notebook source
+dbutils.widgets.text("MODEL_NAME", "cli-adb-priozacion-tc-preciso-ex-mini-nptb")
+dbutils.widgets.text(
+    "TABLA_MDT", "/mnt/acs-dsm-ext/dse-ext/bp/NPTB/mdt_train_priorizacion_tc_preciso_ex_mini_nptb_with_mdm_clientes.parquet"
+)
+dbutils.widgets.text("MODEL_CODE", "10116")
+dbutils.widgets.text("SEED", "34505")
+dbutils.widgets.text("ENVIRONMENT", "prod")
+
+# COMMAND ----------
+
+MODEL_DESCRIPTION = """
+## Motor de recomendación basado en **Xgboost** clasificación para productos Preciso y Tarjetas para clientes Personas.
+"""
+
+# COMMAND ----------
+
+MODEL_NAME = dbutils.widgets.get("MODEL_NAME")
+MODEL_CODE = dbutils.widgets.get("MODEL_CODE")
+TRAIN_TABLA_MDT = dbutils.widgets.get("TABLA_MDT")
+
+# Trackeo de Modelo
+MODEL_TAGS = {"model_name": MODEL_NAME, "model_code": MODEL_CODE}
+
+# Semilla Aleatoria, permite reproducibilidad
+SEED = int(dbutils.widgets.get("SEED"))
+ENVIRONMENT = dbutils.widgets.get("ENVIRONMENT")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 1. Carga Librerías
+
+# COMMAND ----------
+
+import json
+from hyperopt import STATUS_OK, fmin, hp, tpe
+from pyspark.sql.functions import col
+from sparkdl.xgboost import XgboostClassifier
+from pyspark.sql.types import DoubleType
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+
+# COMMAND ----------
+
+# MAGIC %run ../data/PY_Features
+
+# COMMAND ----------
+
+# MAGIC %run ../utils/PY_Utils
+
+# COMMAND ----------
+
+# MAGIC %run ../constants/PY_Globals
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 2. Carga de Training MDT y Balanceo
+
+# COMMAND ----------
+
+# train_mdt = spark.table(TRAIN_TABLA_MDT)
+train_mdt = spark.read.parquet(TRAIN_TABLA_MDT)
+
+# COMMAND ----------
+
+# Aplica trasnformación para PySpark
+one_product_clients_assembled = transform_features(
+    train_mdt, frac_sample=1.0, train=True
+)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 3. Particionamiento (train, validation)
+
+# COMMAND ----------
+
+(train, val, test) = one_product_clients_assembled.randomSplit([0.7, 0.2, 0.1], seed=SEED)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 4. Búsqueda de Parámetros con Optimización Bayesiana
+
+# COMMAND ----------
+
+xgboost_space = {
+    "learning_rate": hp.uniform("eta", 0.01, 0.4),
+    "max_depth": hp.quniform("max_depth", 3, 18, 1),
+    "min_child_weight": hp.quniform("min_child_weight", 0, 20, 1),
+    "subsample": hp.uniform("subsample", 0.3, 1),
+    "colsample_bytree": hp.uniform("colsample_bytree", 0.5, 1),
+    "gamma": hp.uniform("gamma", 1, 9),
+    "reg_alpha": hp.quniform("reg_alpha", 40, 180, 1),
+    "reg_lambda": hp.uniform("reg_lambda", 0, 1),
+    "n_estimators": hp.choice("n_estimators", [100, 200, 300, 600]),
+    "seed": SEED,
+}
+
+# COMMAND ----------
+
+def xgboost_objective(space):
+
+    xgb_model = XgboostClassifier(
+        featuresCol="features",
+        labelCol="label",
+        learning_rate=round(space["learning_rate"], 3),
+        max_depth=int(space["max_depth"]),
+        min_child_weight=int(space["min_child_weight"]),
+        subsample=round(space["subsample"], 4),
+        colsample_bytree=int(space["colsample_bytree"]),
+        gamma=round(space["gamma"], 4),
+        reg_alpha=int(space["reg_alpha"]),
+        reg_lambda=round(space["reg_lambda"], 4),
+        n_estimators=int(space["n_estimators"]),
+        seed=space["seed"],
+    )
+
+    xgb_clf_model = xgb_model.fit(train)
+
+    eval_f1 = MulticlassClassificationEvaluator(labelCol="label", metricName="f1")
+    predictions = custom_transform(model=xgb_clf_model, x_test=val, threshold=THRESHOLD)
+    predictions = predictions.withColumn(
+        "prediction", col("prediction").cast(DoubleType())
+    )
+    validation_metric = eval_f1.evaluate(predictions)
+
+    return {"loss": -validation_metric, "status": STATUS_OK}
+
+# COMMAND ----------
+
+best_params = fmin(
+    fn=xgboost_objective, space=xgboost_space, algo=tpe.suggest, max_evals=NUM_TRIALS
+)
+
+# COMMAND ----------
+
+best_params = fix_params_format(best_params)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 5. Fit Best Model
+
+# COMMAND ----------
+
+xgb_model = XgboostClassifier(featuresCol="features", labelCol="label", **best_params)
+
+best_model_obj = xgb_model.fit(train)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 6. Evaluación del Mejor Modelo
+
+# COMMAND ----------
+
+# MAGIC %run ../utils/PY_PerformanceMetrics
+
+# COMMAND ----------
+
+datasets = {
+    "train": train,
+    "val": val,
+    "test": test
+}
+
+# COMMAND ----------
+
+all_metrics = {}
+
+for name in datasets:
+
+    predictions = custom_transform(model=best_model_obj, x_test=datasets[name], threshold=THRESHOLD)
+    predictions = predictions.withColumn("prediction", col("prediction").cast(DoubleType()))
+    roc_metrics = model_metrics(predictions, dataset_name=name, threshold=THRESHOLD)
+    all_metrics.update(roc_metrics)
+
+    evaluator = MulticlassClassificationEvaluator(labelCol="label", metricName="f1")
+    best_f1_metric = evaluator.evaluate(predictions)
+    f1_metric = {f"f1_weighted_{name}": best_f1_metric, "threshold": THRESHOLD}
+    all_metrics.update(f1_metric)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 7. Registro del modelo
+
+# COMMAND ----------
+
+# MAGIC %run ../utils/PY_ExperimentRegistry
+
+# COMMAND ----------
+
+# si el experimento existe se setea, sino se crea uno nuevo
+experiment_path, experiment_id = set_or_create_experiment(
+    name=MODEL_NAME, tags=MODEL_TAGS
+)
+
+# COMMAND ----------
+
+# MAGIC %run ../utils/PY_ModelRegistry
+
+# COMMAND ----------
+
+model_info = log_model_info(
+    experiment_id=experiment_id,
+    model_name=MODEL_NAME,
+    model_object=best_model_obj,
+    model_params=best_params,
+    model_metrics=all_metrics,
+    model_library="spark",
+    model_env=ENVIRONMENT,
+    description=MODEL_DESCRIPTION,
+    tags=MODEL_TAGS,
+)
+
+# COMMAND ----------
+
+# MAGIC %md ### Output: Id de Experimento
+
+# COMMAND ----------
+
+# output ID del experimento
+json_message = json.dumps({"experiment_id": experiment_id})
+
+print(json_message)
+
+dbutils.notebook.exit(json_message)
+
+# Databricks notebook source
+dbutils.widgets.text("MODEL_NAME", "cli-adb-priozacion-tc-preciso-ex-mini-nptb")
+dbutils.widgets.text(
+    "TABLA_MDT_NO_PRODUCT",
+    "/mnt/acs-dsm-ext/dse-ext/bp/NPTB/mdt_pred_priorizacion_tc_preciso_ex_mini_nptb_with_mdm_clientes.parquet",
+)
+dbutils.widgets.text(
+    "TABLA_MDT_ONE_PRODUCT",
+    "/mnt/acs-dsm-ext/dse-ext/bp/NPTB/mdt_train_priorizacion_tc_preciso_ex_mini_nptb_with_mdm_clientes.parquet"
+)
+dbutils.widgets.text(
+    "TABLA_PREDICCIONES", "/mnt/acs-dsm-ext/dse-ext/bp/NPTB/marcacion_clientes.parquet"
+)
+dbutils.widgets.text("MODEL_ENV", "prod")
+dbutils.widgets.text("MODEL_STAGE", "None")
+
+# COMMAND ----------
+
+MODEL_NAME = dbutils.widgets.get("MODEL_NAME")
+TABLA_MDT_CLIENTS_NO_PRODUCT = dbutils.widgets.get("TABLA_MDT_NO_PRODUCT")
+TABLA_MDT_CLIENTS_ONE_PRODUCT = dbutils.widgets.get("TABLA_MDT_ONE_PRODUCT")
+TABLA_PREDICCIONES = dbutils.widgets.get("TABLA_PREDICCIONES")
+MODEL_ENV = dbutils.widgets.get("MODEL_ENV")
+MODEL_STAGE = dbutils.widgets.get("MODEL_STAGE")
+
+# COMMAND ----------
+
+# MAGIC %md ### 1. Librerías
+
+# COMMAND ----------
+
+from pyspark.sql.functions import col
+
+# COMMAND ----------
+
+# DBTITLE 1,Constantes del Repositorio
+# MAGIC %run ../constants/PY_Globals
+
+# COMMAND ----------
+
+# MAGIC %md ### 2. Carga del Modelo
+
+# COMMAND ----------
+
+# MAGIC %run ../utils/PY_LoadModel
+
+# COMMAND ----------
+
+model_obj = load_last_model(
+    model_name=MODEL_NAME,
+    library="spark",
+    model_stage=MODEL_STAGE,
+    model_repo=MODEL_ENV,
+)
+
+# COMMAND ----------
+
+# MAGIC %md ### 3. Carga de Datos
+
+# COMMAND ----------
+
+# Usuarios Clientes PERSONAS Sin Producto (Preciso / Tarjeta)
+mdt_clients_no_product = spark.read.parquet(TABLA_MDT_CLIENTS_NO_PRODUCT)
+
+# COMMAND ----------
+
+# Usuarios Clientes PERSONAS Con Un Producto (Preciso / Tarjeta)
+mdt_clients_one_product = spark.read.parquet(TABLA_MDT_CLIENTS_ONE_PRODUCT)
+
+# COMMAND ----------
+
+# MAGIC %md ### 4. Transformación de Variables
+
+# COMMAND ----------
+
+# MAGIC %run ../data/PY_Features
+
+# COMMAND ----------
+
+# Transformación de variables para ser utilizadas por pyspark
+mdt_clients_no_product_assembled = transform_features(
+    mdt_clients_no_product, train=False
+)
+mdt_clients_one_product_assembled = transform_features(
+    mdt_clients_one_product, train=True
+)
+
+# COMMAND ----------
+
+# MAGIC %md ### 5. Predicción Clientes Personas BP Sin Producto
+
+# COMMAND ----------
+
+# MAGIC %run ../utils/PY_Utils
+
+# COMMAND ----------
+
+# Predicción con Threshold Customizable
+clients_no_product_pred = custom_transform(
+    model=model_obj,
+    x_test=mdt_clients_no_product_assembled,
+    threshold=THRESHOLD,
+    is_train=False,
+)
+
+# COMMAND ----------
+
+# Extracción de la probabilidad de inferencia.
+clients_no_product_pred_with_prob = clients_no_product_pred.withColumn(
+    "prob", extract_probability_udf("probability", "prediction")
+).select("codigoCif", "prediction", "prob")
+
+# COMMAND ----------
+
+# Obtención de los tertiles
+tertiles_tarjetas = get_tertiles(
+    df=clients_no_product_pred_with_prob.filter(col("prediction") == TARJETAS_LABEL)
+)
+tertiles_preciso = get_tertiles(
+    df=clients_no_product_pred_with_prob.filter(col("prediction") == PRECISO_LABEL)
+)
+
+# COMMAND ----------
+
+tertiles_tarjetas_no_product_clients = tertiles_tarjetas.collect()[0][0]
+tertiles_preciso_no_product_clients = tertiles_preciso.collect()[0][0]
+
+# COMMAND ----------
+
+# Marcaje final a clientes
+final_clients_no_product_pred_with_prob = add_client_mark_to_final_prediction(
+    df=clients_no_product_pred_with_prob, 
+    tertiles_tarjetas=tertiles_tarjetas_no_product_clients,
+    tertiles_preciso=tertiles_preciso_no_product_clients
+)
+
+# COMMAND ----------
+
+# MAGIC %md ### 6. Predicción Clientes Personas BP Con Un Producto
+
+# COMMAND ----------
+
+# Predicción con Threshold Customizable
+clients_one_product_pred = custom_transform(
+    model=model_obj, x_test=mdt_clients_one_product_assembled, threshold=THRESHOLD
+)
+
+# COMMAND ----------
+
+# Extracción de la probabilidad de inferencia
+clients_one_product_pred_with_prob = clients_one_product_pred.withColumn(
+    "prob", extract_probability_udf("probability", "prediction")
+).select("codigoCif", "label", "prediction", "prob")
+
+# COMMAND ----------
+
+# Prediction correcta de clientes (aquellos clientes que el modelo predice
+# la misma salida real del producto que posee)
+
+clients_one_product_right_pred = clients_one_product_pred_with_prob.filter(
+    ((col("label") == PRECISO_LABEL) & (col("prediction") == PRECISO_LABEL))
+    | ((col("label") == TARJETAS_LABEL) & (col("prediction") == TARJETAS_LABEL))
+).withColumn("marca", lit("BAJO"))
+
+# COMMAND ----------
+
+# Cambio de predicción para clientes con la predicción correcta.
+# Si el modelo predice el mismo produto que tiene el cliente, se
+# procede a cambiar el producto recomendado
+final_clients_one_product_right_pred = clients_one_product_right_pred.withColumn(
+    "prediction", 1 - col("prediction")
+)
+
+# COMMAND ----------
+
+# Predicción y Rankeo sobre los Usarios que el modelo no
+# logra predecir el producto que tiene el cliente.
+
+clients_one_product_wrong_pred = clients_one_product_pred_with_prob.filter(
+    ((col("label") == TARJETAS_LABEL) & (col("prediction") == PRECISO_LABEL))
+    | ((col("label") == PRECISO_LABEL) & (col("prediction") == TARJETAS_LABEL))
+)
+
+# COMMAND ----------
+
+# Obtención de tertiles
+tertiles_tarjetas = get_tertiles(
+    df=clients_one_product_wrong_pred.filter(col("prediction") == TARJETAS_LABEL)
+)
+tertiles_preciso = get_tertiles(
+    df=clients_one_product_wrong_pred.filter(col("prediction") == PRECISO_LABEL)
+)
+
+# COMMAND ----------
+
+tertiles_tarjetas_wrong_pred_clients = tertiles_tarjetas.collect()[0][0]
+tertiles_preciso_wrong_pred_clients = tertiles_preciso.collect()[0][0]
+
+# COMMAND ----------
+
+# Añadir Marcaje final a Clientes
+final_clients_one_product_wrong_pred = add_client_mark_to_final_prediction(
+    df=clients_one_product_wrong_pred, 
+    tertiles_tarjetas=tertiles_tarjetas_wrong_pred_clients,
+    tertiles_preciso=tertiles_preciso_wrong_pred_clients
+)
+
+# COMMAND ----------
+
+# MAGIC %md ### 7. Unión de todas las Predicciones
+
+# COMMAND ----------
+
+union_of_all_clients_pred = final_clients_no_product_pred_with_prob.union(
+    final_clients_one_product_right_pred.drop("label")
+).union(final_clients_one_product_wrong_pred.drop("label"))
+
+# COMMAND ----------
+
+union_of_all_clients_pred = union_of_all_clients_pred.withColumn(
+    "prediction",
+    when((col("prediction") == TARJETAS_LABEL), "TDC").when(
+        (col("prediction") == PRECISO_LABEL), "PRECISO"
+    ),
+)
+
+# COMMAND ----------
+
+union_of_all_clients_pred = union_of_all_clients_pred.sort(col("prob").desc())
+union_of_all_clients_pred = union_of_all_clients_pred.withColumnRenamed(
+    "prediction", "asignacion"
+)
+
+# COMMAND ----------
+
+union_of_all_clients_pred.groupby("asignacion").count().show()
+
+# COMMAND ----------
+
+# MAGIC %md ### 8. Escritura Tabla de Predicciones
+
+# COMMAND ----------
+
+union_of_all_clients_pred_fecha = union_of_all_clients_pred.selectExpr(
+  "*",
+  "CAST(CURRENT_DATE() AS DATE) AS FechaAnalisis"
+)
+
+# COMMAND ----------
+
+# Write table (required by Business)
+dbutils.fs.rm(TABLA_PREDICCIONES, recurse=True)
+union_of_all_clients_pred_fecha.write.mode("overwrite").parquet(TABLA_PREDICCIONES)
+
+# COMMAND ----------
+
+# Reprocesamiento
+spark.sql("DELETE FROM prd_bp_negdig_mdtcampanias.prd_marcacion_clientes_nptb_shist WHERE FechaAnalisis = CAST(CURRENT_DATE() AS DATE)").display()
+
+# COMMAND ----------
+
+
+# Write table asked by Arq
+union_of_all_clients_pred_fecha.write.mode("overwrite").saveAsTable(
+    "prd_bp_negdig_mdtcampanias.prd_marcacion_clientes_nptb"
+)
+union_of_all_clients_pred_fecha.write.mode("append").saveAsTable(
+    "prd_bp_negdig_mdtcampanias.prd_marcacion_clientes_nptb_shist"
+)
+
+
+# Databricks notebook source
+import mlflow
+
+
+def set_or_create_experiment(name, tags):
+    """
+    Crea experimento en MLFlow con el nombre dado por `name`,
+    si ya existe, lo setea
+
+    Parameters
+    ----------
+    name: str
+      Nombre asignado al experimento
+    Output
+    ------
+    ID y PATH del experimento
+    """
+    user_session = str(
+        dbutils.notebook.entry_point.getDbutils()
+        .notebook()
+        .getContext()
+        .tags()
+        .apply("user")
+    )
+    experiment_path = "/Users/" + user_session + "/" + name
+    experiment_info = mlflow.get_experiment_by_name(experiment_path)
+
+    if experiment_info:
+        # Si existe setear
+        mlflow.set_experiment(experiment_path)
+        experiment_id = experiment_info.experiment_id
+    else:
+        # Si no crear
+        experiment_id = mlflow.create_experiment(name=experiment_path, tags=tags)
+
+    print("experiment_id:" + str(experiment_id))
+    print("experiment_path:" + experiment_path)
+
+    return experiment_path, experiment_id
+
+# COMMAND ----------
+
+def delete_experiment(name):
+    """Elimina Experimento si existe"""
+    user_session = str(
+        dbutils.notebook.entry_point.getDbutils()
+        .notebook()
+        .getContext()
+        .tags()
+        .apply("user")
+    )
+    experiment_path = "/Users/" + user_session + "/" + name
+    experiment_info = mlflow.get_experiment_by_name(experiment_path)
+
+    if experiment_info:
+        # Si existe se borra
+        mlflow.delete_experiment(experiment_info.experiment_id)
+        print("Delete experiment_id:" + experiment_info.experiment_id)
+
+    return experiment_info
+
+# Databricks notebook source
+# MAGIC %md
+# MAGIC Rutina de carga de modelos preentrenados y registrados en MLFlow al ambiente de trabajo
+
+# COMMAND ----------
+
+from mlflow.tracking import MlflowClient
+import mlflow
+
+
+def load_last_model(
+    model_name, library="spark", model_stage="None", model_repo="prod", test=False
+):
+    """
+    Carga de modelo, usando la ultima version en el stage especificado
+
+    Parameters
+    ----------
+    model_name: str
+      Nombre del modelo a buscar
+    model_stage: str, default "Staging"
+      Stages posibles: "None", "Staging", "Production", "Archived"
+    model_repo: str, default "dev"
+      Repositorio a donde apuntar, si es "prod", se apunta al repositorio centralizado de modelos
+
+    Output
+    ------
+    model: spark model
+      Modelo cargado en un objeto spark model
+    """
+    # Repos Centralizado
+    if model_repo == "prod":
+        registry_uri = "databricks://modelregistry:{}".format(model_repo)
+        mlflow.set_registry_uri(registry_uri)
+
+    # Version Info
+    client = MlflowClient()
+    model_info = client.get_latest_versions(model_name, stages=[model_stage])[0]
+    model_version = model_info.version
+
+    # Carga desde centralizado
+    if library == "spark":
+        model = mlflow.spark.load_model(
+            model_uri=f"models:/{model_name}/{model_version}"
+        )
+    elif library == "sklearn":
+        model = mlflow.sklearn.load_model(
+            model_uri=f"models:/{model_name}/{model_version}"
+        )
+    elif model_library == "statsmodels":
+        model = mlflow.statsmodels.load_model(
+            model_uri=f"models:/{model_name}/{model_version}"
+        )
+    # Resultado para test
+    result = (model, model_info) if test else model
+    return result
+
+# Databricks notebook source
+import numpy as np
+
+# COMMAND ----------
+
+def classification_summary(fitted_models):
+    best_model = fitted_models.bestModel.stages[-1]
+    model_summary = best_model.summary
+
+    # Obtain the receiver-operating characteristic as a dataframe and areaUnderROC.
+    print("## ROC")
+    print("##", "-------------------------------------------------")
+    model_summary.roc.display()
+    print("areaUnderROC: " + str(model_summary.areaUnderROC))
+
+    # Set the model threshold to maximize F-Measure
+    print("## F-Measure")
+    print("##", "-------------------------------------------------")
+    fMeasure = model_summary.fMeasureByThreshold
+    maxFMeasure = fMeasure.groupBy().max("F-Measure").select("max(F-Measure)")
+    maxFMeasure.show(5)
+
+# COMMAND ----------
+
+def regression_summary(fitted_models):
+    model = fitted_models.bestModel.stages[-1]
+    print("Note: the last rows are the information for Intercept")
+    print("##", "-------------------------------------------------")
+    print("##", "  Estimate   |   Std.Error | t Values  |  P-value")
+    coef = np.append(list(model.coefficients), model.intercept)
+    Summary = model.summary
+
+    for i in range(len(Summary.pValues)):
+        print(
+            "##",
+            "{:10.6f}".format(coef[i]),
+            "{:10.6f}".format(Summary.coefficientStandardErrors[i]),
+            "{:8.3f}".format(Summary.tValues[i]),
+            "{:10.6f}".format(Summary.pValues[i]),
+        )
+
+    print("##", "---")
+    print(
+        "##",
+        "Mean squared error: % .6f" % Summary.meanSquaredError,
+        ", RMSE: % .6f" % Summary.rootMeanSquaredError,
+    )
+    print("##", "Multiple R-squared: %f" % Summary.r2)
+    print("##", "Total iterations: %i" % Summary.totalIterations)
+
+# COMMAND ----------
+
+def model_summary(fitted_models, model_type="classification"):
+    if model_type == "classification":
+        classification_summary(fitted_models)
+    elif model_type == "regression":
+        regression_summary(fitted_models)
+    else:
+        raise Exception(
+            "Error model_type solo puede tomar los valores: classification y regression"
+        )
+
+# Databricks notebook source
+import mlflow
+import logging
+
+# COMMAND ----------
+
+def pack_model_by(model_object, model_name, model_library="spark", conda_env=None):
+    """
+    Empaqueta modelo dependiendo de la libreria con la que fue construido
+
+    Parameters
+    ----------
+    model_object: obj
+        Objeto que contiene el modelo
+    model_name: str
+        String con el nombre que le asignaremos al modelo
+    library: str
+        String con el nombre de la libreria usada para crear el modelo,
+        Librerias disponibles:
+        'spark', 'sklearn', 'h2o', 'keras', 'tensorflow', 'pytorch',
+        'statmodels', 'xgboost', 'prophet', 'onnx', 'mleap', 'gluon', 'pmdarima',
+        'paddle', 'fastai', 'spacy', 'diviner', 'catboost'
+    """
+    if model_library == "spark":
+        model_info = mlflow.spark.log_model(
+            model_object,
+            artifact_path=model_name,
+            registered_model_name=model_name,
+            conda_env=conda_env,
+        )
+    elif model_library == "sklearn":
+        model_info = mlflow.sklearn.log_model(
+            model_object,
+            artifact_path=model_name,
+            registered_model_name=model_name,
+            conda_env=conda_env,
+        )
+    elif model_library == "tensorflow":
+        model_info = mlflow.tensorflow.log_model(
+            model_object,
+            artifact_path=model_name,
+            registered_model_name=model_name,
+            conda_env=conda_env,
+        )
+    elif model_library == "pytorch":
+        model_info = mlflow.pytorch.log_model(
+            model_object,
+            artifact_path=model_name,
+            registered_model_name=model_name,
+            conda_env=conda_env,
+        )
+    elif model_library == "statmodels":
+        model_info = mlflow.statmodels.log_model(
+            model_object,
+            artifact_path=model_name,
+            registered_model_name=model_name,
+            conda_env=conda_env,
+        )
+    elif model_library == "xgboost":
+        model_info = mlflow.xgboost.log_model(
+            model_object,
+            artifact_path=model_name,
+            registered_model_name=model_name,
+            conda_env=conda_env,
+        )
+    elif model_library == "prophet":
+        model_info = mlflow.prophet.log_model(
+            model_object,
+            artifact_path=model_name,
+            registered_model_name=model_name,
+            conda_env=conda_env,
+        )
+    return model_info
+
+# COMMAND ----------
+
+def log_model_info(
+    experiment_id,
+    model_name,
+    model_object,
+    model_params=None,
+    model_metrics=None,
+    model_library="sklearn",
+    model_env="prod",
+    description="",
+    tags={"model_name": "demo_regresion_lineal", "model_code": "00002"},
+    conda_env=None,
+):
+    """
+    Registro de modelo implementado en pySpark con MLFlow, usando artefacto
+
+    Prameters
+    ---------
+    model_name: str
+      Nombre asignado al modelo, si existe uno con el mismo nombre se almacena como una nueva version del mismo
+    model_fitted: obj
+      Objeto que contiene el modelo preentrenado
+    model_params: dict
+      Diccionario con los parámetros del modelo que se quiere registrar
+    model_metrics: dict
+      Diccionario con las metricas de performance del modelo registrado
+    """
+    if model_env == "prod":
+        registry_uri = "databricks://modelregistry:{}".format(model_env)
+        mlflow.set_registry_uri(registry_uri)
+
+    with mlflow.start_run(
+        experiment_id=experiment_id, description=description, tags=tags
+    ):
+        # Log params
+        if model_params:
+            mlflow.log_params(model_params)
+
+        # Log Model (especificar libreria)
+        model_info = pack_model_by(
+            model_object=model_object,
+            model_name=model_name,
+            model_library=model_library,
+            conda_env=conda_env,
+        )
+
+        # Log metrics
+        if model_metrics:
+            mlflow.log_metrics(model_metrics)
+        print("\n *** MODEL_PATH (para usar el modelo luego): ", model_info.model_uri)
+
+    return model_info
+
+# COMMAND ----------
+
+def register_model(
+    experiment_id, experiment_name, model_name, filter_metric=None, model_env="prod"
+):
+    """
+    Registro de modelo implementado en pySpark con MLFlow, usando experimento
+
+    Prameters
+    ---------
+    experiment_id: str
+      Id del experimento, ver seccion trackeo de experimento
+    experiment_name: obj
+      Nombre del experimento, ver seccion trackeo de experimento
+    model_name: dict
+      Nombre de registro del modelo, si existe uno con el mismo nombre se almacena como una nueva version del mismo
+    filter_metric: dict, default None
+      Diccionario con umbrales definidos metricas de performance del modelo registrado
+    model_env: str, default 'dev'
+      String que indica en ambiente se almacenara el modelo, si es 'prod' se almacena en repositorio
+      centralizado de modelos
+
+    Output
+    ------
+    Informacion de version promocionada a repo centralizado de modelos
+    """
+
+    # Si se condiciona metrica
+    if filter_metric:
+        metric = list(filter_metric.keys())[0]
+        value = list(filter_metric.values())[0]
+        query = "tags.mlflow.runName = '{}' and metrics.`{}` <= {}".format(
+            experiment_name, metric, value
+        )
+        run_id = (
+            mlflow.search_runs(experiment_ids=experiment_id, filter_string=query)
+            .iloc[0]
+            .run_id
+        )
+    else:
+        run_id = mlflow.search_runs(experiment_ids=experiment_id).iloc[0].run_id
+
+        # Regsistro URI
+        if model_env == "prod":
+            registry_uri = "databricks://modelregistry:{}".format(model_env)
+            mlflow.set_registry_uri(registry_uri)
+
+    # Registro de Modelo
+    try:
+        model_version = mlflow.register_model(
+            f"runs:/{run_id}/{experiment_name}", model_name
+        )
+        version = model_version.version
+        print("** Model Registred: Version ", version)
+    except Exception as e:
+        version = -1
+        print("Ups!", e.__class__, "occurred.")
+        logging.exception("Model not Registred! **")
+    return version
+
+# Databricks notebook source
+spark.catalog.clearCache()
+
+# COMMAND ----------
+
+from scipy.stats import ks_2samp
+from sklearn.metrics import roc_auc_score
+
+def model_metrics(prediction, dataset_name: str, threshold: float):
+    prediction = prediction.toPandas()
+    prediction["probability"] = prediction["probability"].apply(lambda x: list(x))
+    prob = prediction["probability"].apply(lambda x: x[0] if x[0] >= threshold else x[1])
+    prediction["probability"] = prob
+    y_prob_0 = prediction[prediction['label'].isin([0.0])]
+    y_prob_1 = prediction[prediction['label'].isin([1.0])]
+    ks = ks_2samp(y_prob_0['probability'],
+                  y_prob_1['probability'])
+    
+    roc_auc_score_metric = roc_auc_score(prediction['prediction'], 
+                                         prediction['label'])
+    
+    return {"Area_under_ROC_" + dataset_name: roc_auc_score_metric,
+            "Gini_" + dataset_name: 2 * roc_auc_score_metric - 1,
+            "KS_" + dataset_name: list((ks))[0],
+            "threshold": threshold}
+
+# Databricks notebook source
+# MAGIC %md
+# MAGIC Promocion del modelo preentrenado, cambio de Stage, posibles status: None, Staging, Production
+
+# COMMAND ----------
+
+from mlflow.tracking import MlflowClient
+import mlflow
+
+
+def transition_model(
+    model_name, old_stage="Staging", new_stage="Production", model_repo="dev"
+):
+    # Repos Centralizado
+    if model_repo == "prod":
+        registry_uri = "databricks://modelregistry:{}".format(model_repo)
+        mlflow.set_registry_uri(registry_uri)
+
+    # Transicion Stage
+    client = MlflowClient()
+    model_info = client.get_latest_versions(model_name, stages=[old_stage])[0]
+    model_version = model_info.version
+
+    version_info = client.transition_model_version_stage(
+        name=model_name, version=model_version, stage=new_stage
+    )
+    return version_info
+
+# Databricks notebook source
+import delta.tables as dlt
+
+
+def get_table_version(table_name="mst_bp_arquetipos.regre_model_train_mdt"):
+    "Obtiene informacion de version de tabla delta"
+    table = dlt.DeltaTable.forName(spark, table_name)
+    mdt_info = (
+        table.history()
+        .select("version", "timestamp", "userName", "operation")
+        .toPandas()
+    )
+    last_mdt_info = mdt_info.iloc[0].to_dict()
+    last_mdt_info = {"delta_" + k: v for k, v in last_mdt_info.items()}
+
+    return last_mdt_info
+
+# COMMAND ----------
+
+def add_table_info(description, variables_dict):
+    # Parametros
+    index_col = variables_dict.get("index_col")
+    label_col = variables_dict.get("label_col")
+    categorical_cols = variables_dict.get("categorical_cols")
+    continuous_cols = variables_dict.get("continuous_cols")
+    weight_col = variables_dict.get("weight_col")
+    variables_info = (
+        [index_col] + [label_col] + [weight_col] + categorical_cols + continuous_cols
+    )
+
+    # Aniadir texto a descripcion
+    txt = ", ".join(variables_info)
+    description = description + txt
+
+    return description
+
+# Databricks notebook source
+# MAGIC %md
+# MAGIC Carga de utils generales 🚀🚀
+
+# COMMAND ----------
+
+# MAGIC %run ../constants/PY_Globals
+
+# COMMAND ----------
+
+from pyspark.sql.functions import when, udf, lit, isnan, count, col
+from pyspark.sql.functions import percentile_approx
+from pyspark.sql.types import DoubleType, IntegerType
+from pyspark.sql import DataFrame as PSparkDataFrame
+
+# COMMAND ----------
+
+extract_probability_udf = udf(lambda x, y: extract_probability(x, y), DoubleType())
+
+# COMMAND ----------
+
+def extract_probability(prob_vals, pred_idx):
+    """
+    Helper used to extract probability from
+    a given probability index class
+    """
+    try:
+        return float(prob_vals[pred_idx])
+    except ValueError:
+        return None
+
+# COMMAND ----------
+
+def get_right_prob_class(probabilities, threshold):
+    """
+    Helper func used to extrat class
+    given a pre-defined threshold
+    """
+    try:
+        probs_above_threshold = [p if p >= threshold else 999 for p in probabilities]
+        if all([True if p == 999 else False for p in probs_above_threshold]):
+            return None
+        else:
+            return int(probs_above_threshold.index(min(probs_above_threshold)))
+    except ValueError:
+        return None
+
+# COMMAND ----------
+
+def custom_transform(
+    model, x_test: PSparkDataFrame, threshold: float = 0.5, is_train: bool = True
+):
+    """
+    Wrapper from model.trasform(dataset) with custom threshold
+    """
+    try:
+        assert isinstance(
+            x_test, PSparkDataFrame
+        ), "Only pyspsark dataframe is supported"
+        assert (
+            "codigoCif" in x_test.columns
+        ), "codigoCif not present in dataframe columns"
+    except Exception as e:
+        raise e
+
+    cols = ("codigoCif", "prediction", "probability", "label")
+    var_type = IntegerType()
+    if not is_train:
+        cols = tuple(x for x in cols if x != ("label"))
+
+    pred = model.transform(x_test).select(*cols)
+    pred = pred.withColumnRenamed("prediction", "original_pred")
+
+    udf_ = udf(lambda x, thre: get_right_prob_class(x, thre), var_type)
+    tmp_df = pred.withColumn("thre", lit(threshold))
+
+    final_cols = (*cols, "original_pred")
+
+    return tmp_df.withColumn("prediction", udf_("probability", "thre")).select(
+        *final_cols
+    )
+
+# COMMAND ----------
+
+def fix_params_format(params):
+    """
+    Convert floats to int from data
+    that comes from hyperot library
+    """
+    for k, v in params.items():
+        if v > 1:
+            params.update({k: int(v)})
+    return params
+
+# COMMAND ----------
+
+def get_tertiles(df):
+    """
+    Used to extract tertiles from probability columns
+    """
+    return df.agg(percentile_approx("prob", [0.33, 0.66]))
+
+# COMMAND ----------
+
+def get_nan_val(df):
+    """
+    Helper func used to check nans
+    """
+    return df.select([count(when(isnan(c), c)).alias(c) for c in df.columns])
+
+# COMMAND ----------
+
+def add_client_mark_to_final_prediction(df, tertiles_tarjetas, tertiles_preciso):
+
+    new_df = df.withColumn(
+        "marca",
+        when(
+            (col("prediction") == TARJETAS_LABEL) & (col("prob") >= tertiles_tarjetas[1]),
+            "ALTO",
+        )
+        .when(
+            (col("prediction") == TARJETAS_LABEL)
+            & (col("prob") < tertiles_tarjetas[1])
+            & (col("prob") >= tertiles_tarjetas[0]),
+            "MEDIO",
+        )
+        .when(
+            (col("prediction") == TARJETAS_LABEL) & (col("prob") < tertiles_tarjetas[0]),
+            "BAJO",
+        )
+        .when(
+            (col("prediction") == PRECISO_LABEL) & (col("prob") >= tertiles_preciso[1]),
+            "ALTO",
+        )
+        .when(
+            (col("prediction") == PRECISO_LABEL)
+            & (col("prob") < tertiles_preciso[1])
+            & (col("prob") >= tertiles_preciso[0]),
+            "MEDIO",
+        )
+        .when(
+            (col("prediction") == PRECISO_LABEL) & (col("prob") < tertiles_preciso[0]),
+            "BAJO",
+        ),
+    ).select("codigoCif", "prediction", "prob", "marca")
+    
+    return new_df
+

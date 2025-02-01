@@ -1,0 +1,17 @@
+# Recommended a FULL cleanup of caché, conda, etc.
+# conda create --name llm python=3.12
+# conda activate llm
+# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+numpy
+gekko
+pandas
+# git clone https://github.com/PanQiWei/AutoGPTQ.git && cd AutoGPTQ
+pip install -vvv --no-build-isolation -e .
+auto-gptq==0.7.1
+optimum==1.22.0
+bitsandbytes==0.44.1
+transformers==4.44.2
+datasets==3.0.1
+trl
+tensorboard
+ipywidgets

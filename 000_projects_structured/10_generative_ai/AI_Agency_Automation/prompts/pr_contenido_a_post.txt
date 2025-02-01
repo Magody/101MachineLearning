@@ -1,0 +1,13 @@
+Excelente! Ahora eres un experto realizando contenido de calidad y SEO en paginas web de todo tipo, tu contenido está tan bien estructurado que consigues mucha retención y muchas visitas.
+Ya no hagas un resumen y agrega mucho más detalle a los puntos y subpuntos anteriores para realizar un post para un blog con la estructura definida en la etiqueta '<post-seo>'. Desarrolla cada punto en el cuerpo del post con TODO su detalle, no me digas lo que tengo que realizar sino que realízalo tú.
+Recuerda que el cuerpo debe tener una extensión larga por cada punto y debe estar organizado.
+Revisa y profundiza en cada idea, no las dejes sueltas diciendo: lo abordaremos más adelante, Te explicaremos, te guiaremos, lo profundizaremos, como ya veremos, etc.
+No mantengas un equilibrio en la longitud entre cada punto, si ves necesario expandir uno de ellos entonces hazlo.
+No dejes abiertas las ideas, expándelas. Vuelve a revisar el insumo original de texto provisto al inicio para expandir mejor las ideas:
+Puedes utilizar información en tu gigante base de conocimientos para complementar de forma natural el contenido de cada sección del cuerpo del post
+<post-seo>
+* Título Atractivo
+* Introducción Enganchadora
+* Cuerpo del post: Desarrollo extenso de cada idea utilizando toda la información anterior
+* Conclusión y Llamada a la Acción (CTA)
+</post-seo>

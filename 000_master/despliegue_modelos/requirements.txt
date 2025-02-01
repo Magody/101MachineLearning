@@ -1,0 +1,7 @@
+twikit
+textblob
+nltk
+matplotlib
+pandas
+numpy
+python-dotenv

@@ -1,0 +1,7 @@
+Llama-2-7b-chat-finetune
+results
+shawgpt-ft
+../test-trainer
+models/*
+checkpoints
+test-1B-finetune
